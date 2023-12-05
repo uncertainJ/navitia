@@ -68,21 +68,29 @@ class EquipmentProviderManager(object):
                 )
             else:
                 self.logger.error('impossible to create provider with key: {}'.format(key))
-
-    def _init_class(self, provider_id, cls, arguments):
-        """
-        Create an instance of a provider according to config
-        :param cls: provider class in Jormungandr found in config file
-        :param arguments: parameters to set in the provider class
-        :return: instance of provider
-        """
-        try:
-            module_path, name = cls.rsplit('.', 1)
-            module = import_module(module_path)
-            attr = getattr(module, name)
-            return attr(provider_id, **arguments)
-        except ImportError:
-            self.logger.warning('impossible to build, cannot find class: {}'.format(cls))
+def _init_class(self, provider_id, cls, arguments):
+    """
+    Create an instance of a provider according to config
+    :param cls: provider class in Jormungandr found in config file
+    :param arguments: parameters to set in the provider class
+    :return: instance of provider
+    """
+    # Define a whitelist of allowed modules
+    allowed_modules = {
+        'myapp.providers.module1',
+        'myapp.providers.module2',
+        # Add all the modules that are allowed to be imported
+    }
+    try:
+        module_path, name = cls.rsplit('.', 1)
+        # Check if the module is in the whitelist
+        if module_path not in allowed_modules:
+            raise ImportError("Attempted to import a module that is not in the whitelist: {}".format(module_path))
+        module = import_module(module_path)
+        attr = getattr(module, name)
+        return attr(provider_id, **arguments)
+    except ImportError as e:
+        self.logger.warning('impossible to build, cannot find class: {}. Error: {}'.format(cls, e))
 
     def _update_provider(self, provider):
         self.logger.info('updating/adding {} equipment provider'.format(provider.id))

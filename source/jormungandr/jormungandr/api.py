@@ -1,3 +1,4 @@
+import importlib
 #!/usr/bin/env python
 # coding=utf-8
 
@@ -130,10 +131,24 @@ def add_info_newrelic(response, *args, **kwargs):
 # If modules are configured, then load and run them
 if 'MODULES' in rest_api.app.config:
     rest_api.module_loader = ModulesLoader(rest_api)
+    # Define a whitelist of allowed modules
+    ALLOWED_MODULES = {
+        'module1': 'path.to.module1',
+        'module2': 'path.to.module2',
+        # Add more allowed modules here
+    }
     for prefix, module_info in rest_api.app.config['MODULES'].items():
-        module_file = importlib.import_module(module_info['import_path'])
-        module = getattr(module_file, module_info['class_name'])
-        rest_api.module_loader.load(module(rest_api, prefix))
+        # Validate the import path against the whitelist
+        if module_info['import_path'] in ALLOWED_MODULES.values():
+            module_file = importlib.import_module(module_info['import_path'])
+            module = getattr(module_file, module_info['class_name'])
+            rest_api.module_loader.load(module(rest_api, prefix))
+        else:
+            # Handle the case where the module is not in the whitelist
+            # For example, log the error and continue, raise an exception, etc.
+            print(f"Error: Attempted to import a module not in the whitelist: {module_info['import_path']}")
+            # Optionally, raise an exception or take other appropriate action
+            # raise ImportError("Unauthorized module import attempt.")
     rest_api.module_loader.run()
 else:
     rest_api.app.logger.warning(

@@ -1,3 +1,7 @@
+import base64
+import binascii
+import logging
+import flask_restful
 # encoding: utf-8
 
 #  Copyright (c) 2001-2022, Hove and/or its affiliates. All rights reserved.
@@ -75,8 +79,6 @@ def authentication_required(func):
             return func(*args, **kwargs)
 
     return wrapper
-
-
 def get_token():
     """
     find the Token in the "Authorization" HTTP header
@@ -110,7 +112,8 @@ def get_token():
                 decoded = decoded.decode()
             return decoded.split(':')[0].strip()
         except (binascii.Error, UnicodeDecodeError):
-            logging.getLogger(__name__).exception('badly formated token %s', auth)
+            # Log a generic message instead of the token
+            logging.getLogger(__name__).exception('Badly formatted token detected')
             flask_restful.abort(401, message="Unauthorized, invalid token", status=401)
             return None
     else:
