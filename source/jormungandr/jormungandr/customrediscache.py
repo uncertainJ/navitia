@@ -1,5 +1,4 @@
-from flask_caching._compat import integer_types, string_types
-from flask_caching.backends.base import BaseCache, iteritems_wrapper
+import json
 
 try:
     import cPickle as pickle
@@ -70,32 +69,33 @@ class CustomRedisCache(BaseCache):
         if timeout == 0:
             timeout = -1
         return timeout
-
-    def dump_object(self, value):
-        """Dumps an object into a string for redis.  By default it serializes
-        integers as regular string and pickle dumps everything else.
-        """
-        t = type(value)
-        if t in integer_types:
-            return str(value).encode("ascii")
-        return b"!" + pickle.dumps(value)
-
-    def load_object(self, value):
-        """The reversal of :meth:`dump_object`.  This might be called with
-        None.
-        """
-        if value is None:
-            return None
-        if value.startswith(b"!"):
-            try:
-                return pickle.loads(value[1:])
-            except pickle.PickleError:
-                return None
+def dump_object(self, value):
+    """Dumps an object into a string for Redis. By default, it serializes
+    integers as regular string and JSON dumps everything else.
+    """
+    t = type(value)
+    if t in integer_types:
+        return str(value).encode("ascii")
+    # Use JSON serialization instead of pickle
+    return b"!" + json.dumps(value).encode("utf-8")
+def load_object(self, value):
+    """The reversal of :meth:`dump_object`. This might be called with
+    None.
+    """
+    if value is None:
+        return None
+    if value.startswith(b"!"):
         try:
-            return int(value)
-        except ValueError:
-            # before 0.8 we did not have serialization.  Still support that.
-            return value
+            # Assuming the serialized JSON data is UTF-8 encoded
+            json_data = value[1:].decode('utf-8')
+            return json.loads(json_data)
+        except json.JSONDecodeError:
+            return None
+    try:
+        return int(value)
+    except ValueError:
+        # before 0.8 we did not have serialization. Still support that.
+        return value
 
     def get(self, key):
         return self.load_object(self._read_client.get(self.key_prefix + key))
